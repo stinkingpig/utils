@@ -3,7 +3,7 @@ import ipaddress
 import argparse
 import re
 import requests
-
+import json
 
 # only supporting ipv4 addresses at this time
 # always goes to the internet instead of caching and comparing versions
@@ -57,7 +57,9 @@ in_net_test(gcp_ips,"GCP Customers")
 
 # Oracle Cloud https://docs.oracle.com/en-us/iaas/Content/General/Concepts/addressranges.htm
 # https://docs.oracle.com/iaas/tools/public_ip_ranges.json
+oci_ips = []
 oci_ip_ranges = requests.get('https://docs.oracle.com/iaas/tools/public_ip_ranges.json').json()['regions']
-oci_ips = [item['cidrs'] for item in oci_ip_ranges if "cidrs" in item]
-print(oci_ips)
-#in_net_test(oci_ips,"OCI")
+for oci_regions in oci_ip_ranges: 
+    for oci_region in oci_regions["cidrs"]:
+        oci_ips.append(oci_region["cidr"])
+in_net_test(oci_ips,"OCI")
