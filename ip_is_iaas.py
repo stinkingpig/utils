@@ -48,11 +48,19 @@ gcp_ip_ranges = requests.get('https://www.gstatic.com/ipranges/cloud.json').json
 gcp_ips = [item['ipv4Prefix'] for item in gcp_ip_ranges if "ipv4Prefix" in item]
 in_net_test(gcp_ips,"GCP Customers")
 
-# Azure documentation
-#  https://learn.microsoft.com/en-us/python/api/azure-mgmt-network/azure.mgmt.network.v2020_03_01.operations.publicipaddressesoperations?view=azure-python
+# Azure [BROKEN]
+# documentation https://learn.microsoft.com/en-us/python/api/azure-mgmt-network/azure.mgmt.network.v2020_03_01.operations.publicipaddressesoperations?view=azure-python
 # https://www.microsoft.com/en-us/download/details.aspx?id=56519
+# The above download url requires human clicking to produce the below confirmation url which is only good for a day. Probably need to use Microsoft's SDK for Python (https://learn.microsoft.com/en-us/azure/developer/python/)
+# Azure FedRAMP https://www.microsoft.com/en-us/download/details.aspx?id=57063
+# Azure China https://www.microsoft.com/en-us/download/details.aspx?id=42064
+# Azure Germany https://www.microsoft.com/download/details.aspx?id=57064
+# maybe something here? https://community.f5.com/t5/codeshare/dynamic-ip-update-of-azure-ip-ranges-and-store-them-in-data/ta-p/291396
+# note that format changed from XML to JSON in 2021, older scripts are not valid
+# this script is also out of date https://adamtheautomator.com/azure-ip-ranges/
 # azure_ip_ranges = requests.get('https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519').json()['values']
 # azure_ips = [item['addressPrefixes'] for item in azure_ip_ranges]
+
 # in_net_test(azure_ips,"Azure")
 
 # Oracle Cloud https://docs.oracle.com/en-us/iaas/Content/General/Concepts/addressranges.htm
