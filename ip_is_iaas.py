@@ -2,8 +2,10 @@
 import ipaddress
 import argparse
 import re
-import requests
 import json
+import requests
+import requests_cache
+requests_cache.install_cache('iaas_cache')
 
 # only supporting ipv4 addresses at this time
 # always goes to the internet instead of caching and comparing versions
@@ -58,7 +60,8 @@ in_net_test(gcp_ips,"GCP Customers")
 # maybe something here? https://community.f5.com/t5/codeshare/dynamic-ip-update-of-azure-ip-ranges-and-store-them-in-data/ta-p/291396
 # note that format changed from XML to JSON in 2021, older scripts are not valid
 # this script is also out of date https://adamtheautomator.com/azure-ip-ranges/
-# azure_ip_ranges = requests.get('https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519').json()['values']
+# here's a powershell handler https://learn.microsoft.com/en-us/powershell/module/az.network/get-aznetworkservicetag?view=azps-9.4.0&viewFallbackFrom=azps-5.1.0
+# azure_ip_ranges = requests.get('https://download.microsoft.com/download/7/1/D/71D86715-5596-4529-9B13-DA13A5DE5B63/ServiceTags_Public_20230213.json').json()['values']
 # azure_ips = [item['addressPrefixes'] for item in azure_ip_ranges]
 
 # in_net_test(azure_ips,"Azure")
