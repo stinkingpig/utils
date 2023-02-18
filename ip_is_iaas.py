@@ -6,6 +6,7 @@ import json
 import requests
 import requests_cache
 requests_cache.install_cache('iaas_cache')
+from bs4 import BeautifulSoup
 
 # only supporting ipv4 addresses at this time
 # always goes to the internet instead of caching and comparing versions
@@ -50,21 +51,26 @@ gcp_ip_ranges = requests.get('https://www.gstatic.com/ipranges/cloud.json').json
 gcp_ips = [item['ipv4Prefix'] for item in gcp_ip_ranges if "ipv4Prefix" in item]
 in_net_test(gcp_ips,"GCP Customers")
 
-# Azure [BROKEN]
-# documentation https://learn.microsoft.com/en-us/python/api/azure-mgmt-network/azure.mgmt.network.v2020_03_01.operations.publicipaddressesoperations?view=azure-python
-# https://www.microsoft.com/en-us/download/details.aspx?id=56519
-# The above download url requires human clicking to produce the below confirmation url which is only good for a day. Probably need to use Microsoft's SDK for Python (https://learn.microsoft.com/en-us/azure/developer/python/)
+# Azure https://learn.microsoft.com/en-us/python/api/azure-mgmt-network/azure.mgmt.network.v2020_03_01.operations.publicipaddressesoperations?view=azure-python
+# https://www.microsoft.com/en-us/download/details.aspx?id=56519 needs to be parsed to get the real url
 # Azure FedRAMP https://www.microsoft.com/en-us/download/details.aspx?id=57063
 # Azure China https://www.microsoft.com/en-us/download/details.aspx?id=42064
 # Azure Germany https://www.microsoft.com/download/details.aspx?id=57064
-# maybe something here? https://community.f5.com/t5/codeshare/dynamic-ip-update-of-azure-ip-ranges-and-store-them-in-data/ta-p/291396
-# note that format changed from XML to JSON in 2021, older scripts are not valid
-# this script is also out of date https://adamtheautomator.com/azure-ip-ranges/
-# here's a powershell handler https://learn.microsoft.com/en-us/powershell/module/az.network/get-aznetworkservicetag?view=azps-9.4.0&viewFallbackFrom=azps-5.1.0
-# azure_ip_ranges = requests.get('https://download.microsoft.com/download/7/1/D/71D86715-5596-4529-9B13-DA13A5DE5B63/ServiceTags_Public_20230213.json').json()['values']
-# azure_ips = [item['addressPrefixes'] for item in azure_ip_ranges]
-
-# in_net_test(azure_ips,"Azure")
+azure_ips = []
+azure_url = "https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519"
+page = requests.get(azure_url)
+azure_page = requests.get(azure_url)
+# parse HTML to get the real link
+soup = BeautifulSoup(azure_page.content, "html.parser")
+azure_link = soup.find('a', {'data-bi-containername':'download retry'})['href']
+azure_values = requests.get(azure_link).json()['values']
+azure_properties = [item['properties'] for item in azure_values]
+azure_prefixes = [item['addressPrefixes'] for item in azure_properties]
+for azure_prefix in azure_prefixes:
+    for azure_range in azure_prefix:
+        if re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}", azure_range):
+            azure_ips.append(azure_range)
+in_net_test(azure_ips,"Azure")
 
 # Oracle Cloud https://docs.oracle.com/en-us/iaas/Content/General/Concepts/addressranges.htm
 # https://docs.oracle.com/iaas/tools/public_ip_ranges.json
