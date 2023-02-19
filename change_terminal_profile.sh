@@ -1,8 +1,10 @@
 #!/bin/sh
 ## Shamelessly stolen from Michael Richmond (mar) and hacked up
 ## Set the default Terminal profile name
-## This profile will be used if no argument
-## provided to this script.
+## This profile will be used if no argument is provided to this script.
+## Note that your profile will not change back; use a new window or tab
+## and set your Terminal to close after a clean exit.
+##
 ## Add this to your .zprofile:
 ## ssh_with_color() {
 ##     CHANGE_TERMINAL_COLOR=/usr/local/bin/change_terminal_profile.sh
