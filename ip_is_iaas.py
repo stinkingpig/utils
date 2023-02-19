@@ -21,9 +21,70 @@ parser.add_argument('ip_input')
 args = parser.parse_args()
 
 # check that it's a dotted quad address
-if not re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", args.ip_input):
-    print(args.ip_input,"is not an IP address")
-    raise SystemExit()
+if re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", args.ip_input):
+    try:
+        addr = ipaddress.IPv4Address(args.ip_input)
+    except ipaddress.AddressValueError:
+        print(args.ip_input, 'is not a valid IPv4 address')
+        exit()
+    else:
+        if addr.is_multicast:
+            print(args.ip_input, 'is an IPv4 multicast address')
+            exit()
+        if addr.is_private:
+            print(args.ip_input, 'is an IPv4 private address')
+            exit()
+        if addr.is_global:
+            print(args.ip_input, 'is an IPv4 global address')
+        if addr.is_link_local:
+            print(args.ip_input, 'is an IPv4 link-local address')
+            exit()
+        if addr.is_unspecified:
+            print(args.ip_input, 'is an IPv4 site-local address')
+            exit()
+        if addr.is_reserved:
+            print(args.ip_input, 'is an IPv4 reserved address')
+            exit()
+        if addr.is_loopback:
+            print(args.ip_input, 'is an IPv4 loopback address')
+            exit()
+else:
+    try:
+        addr = ipaddress.IPv6Address(args.ip_input)
+    except ipaddress.AddressValueError:
+        print(args.ip_input, 'is not a valid IPv4 or IPv6 address')
+        exit()
+    else:
+        if addr.is_multicast:
+            print(args.ip_input, 'is an IPv6 multicast address')
+            exit()
+        if addr.is_private:
+            print(args.ip_input, 'is an IPv6 private address')
+            exit()
+        if addr.is_global:
+            print(args.ip_input, 'is an IPv6 global address, Unsupported.')
+            exit()
+        if addr.is_link_local:
+            print(args.ip_input, 'is an IPv6 link-local address')
+            exit()
+        if addr.is_site_local:
+            print(args.ip_input, 'is an IPv6 site-local address')
+            exit()
+        if addr.is_reserved:
+            print(args.ip_input, 'is an IPv6 reserved address')
+            exit()
+        if addr.is_loopback:
+            print(args.ip_input, 'is an IPv6 loopback address')
+            exit()
+        if addr.ipv4_mapped:
+            print(args.ip_input, 'is an IPv6 mapped IPv4 address.')
+            exit()
+        if addr.sixtofour:
+            print(args.ip_input, 'is an IPv6 RFC 3056 address')
+            exit()
+        if addr.teredo:
+            print(args.ip_input, 'is an IPv6 RFC 4380 address')
+            exit()
 
 # subroutine to compare an ip with a subnet range
 def in_net_test(iprange,iaas):
