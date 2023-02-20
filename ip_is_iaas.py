@@ -5,7 +5,7 @@ import re
 import json
 import requests
 import requests_cache
-requests_cache.install_cache('iaas_cache')
+requests_cache.install_cache(cache_name='iaas_cache', expire_after=86400)
 from bs4 import BeautifulSoup
 
 # only supporting ipv4 addresses at this time
@@ -20,19 +20,30 @@ parser = argparse.ArgumentParser(
 parser.add_argument('ip_input')
 args = parser.parse_args()
 
-def check_amazon(aws_url,aws_name):
-    aws_ip_ranges = requests.get(aws_url).json()['prefixes']
-    amazon_ips = [item['ip_prefix'] for item in aws_ip_ranges]
-    in_net_test(amazon_ips,aws_name)
+def check_amazon(ip_version, aws_url,aws_name):
+    if ip_version == 4:
+        aws_ip_ranges = requests.get(aws_url).json()['prefixes']
+        amazon_ips = [item['ip_prefix'] for item in aws_ip_ranges]
+        in_net_test(amazon_ips,aws_name)
+    else:
+        aws_ip_ranges = requests.get(aws_url).json()['ipv6_prefixes']
+        amazon_ips = [item['ipv6_prefix'] for item in aws_ip_ranges]
+        in_net_test(amazon_ips,aws_name)
 
-def check_google(goog_url,goog_name):
+def check_google(ip_version, goog_url,goog_name):
     # Note that the Service and Customer files are identical at this time.
     # Only synctoken differs.
     goog_ip_ranges = requests.get(goog_url).json()['prefixes']
-    goog_ips = [item['ipv4Prefix'] for item in goog_ip_ranges if "ipv4Prefix" in item]
-    in_net_test(goog_ips,goog_name)
+    if ip_version == 4:
+        goog_ips = [item['ipv4Prefix'] for item in goog_ip_ranges if "ipv4Prefix" in item]
+        in_net_test(goog_ips,goog_name)
+    else:
+        goog_ips = [item['ipv6Prefix'] for item in goog_ip_ranges if "ipv6Prefix" in item]
+        in_net_test(goog_ips,goog_name)
 
-def check_oracle(oci_url,oci_name):
+def check_oracle(ip_version, oci_url,oci_name):
+    # Note that Oracle supports BYO IPv6 but does not appear to advertise their own IPv6 ranges
+    # at this time
     oci_ips = []
     oci_ip_ranges = requests.get(oci_url).json()['regions']
     for oci_regions in oci_ip_ranges: 
@@ -40,7 +51,7 @@ def check_oracle(oci_url,oci_name):
             oci_ips.append(oci_region["cidr"])
     in_net_test(oci_ips,oci_name)
 
-def check_azure(azure_url,azure_region):
+def check_azure(ip_version, azure_url,azure_region):
     # the download page needs to be parsed with BS to get the real url, which changes regularly
     azure_ips = []
     page = requests.get(azure_url)
@@ -53,8 +64,12 @@ def check_azure(azure_url,azure_region):
     azure_prefixes = [item['addressPrefixes'] for item in azure_properties]
     for azure_prefix in azure_prefixes:
         for azure_range in azure_prefix:
-            if re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}", azure_range):
-                azure_ips.append(azure_range)
+            if ip_version == 4:
+                if re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}", azure_range):
+                    azure_ips.append(azure_range)
+            else:
+                if not re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}", azure_range):
+                    azure_ips.append(azure_range)
     in_net_test(azure_ips,azure_region)
 
 
@@ -65,6 +80,7 @@ def validate_input(ip_input):
     if re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", ip_input):
         try:
             addr = ipaddress.IPv4Address(ip_input)
+            return addr.version
         except ipaddress.AddressValueError:
             print(ip_input, 'is not a valid IPv4 address')
             exit()
@@ -92,6 +108,7 @@ def validate_input(ip_input):
     else:
         try:
             addr = ipaddress.IPv6Address(ip_input)
+            return addr.version
         except ipaddress.AddressValueError:
             print(ip_input, 'is not a valid IPv4 or IPv6 address')
             exit()
@@ -103,8 +120,7 @@ def validate_input(ip_input):
                 print(ip_input, 'is an IPv6 private address')
                 exit()
             if addr.is_global:
-                print(ip_input, 'is an IPv6 global address, Unsupported.')
-                exit()
+                print(ip_input, 'is an IPv6 global address')
             if addr.is_link_local:
                 print(ip_input, 'is an IPv6 link-local address')
                 exit()
@@ -137,16 +153,16 @@ def in_net_test(iprange,iaas):
             exit()
 
 def main():
-    validate_input(args.ip_input)
-    check_amazon("https://ip-ranges.amazonaws.com/ip-ranges.json", "AWS")
-    check_azure("https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519","Azure US")
-    check_azure("https://www.microsoft.com/en-us/download/confirmation.aspx?id=57063","Azure FedRAMP")
-    check_azure("https://www.microsoft.com/download/confirmation.aspx?id=57064","Azure Germany")
+    ip_version = validate_input(args.ip_input)
+    check_amazon(ip_version, "https://ip-ranges.amazonaws.com/ip-ranges.json", "AWS")
+    check_azure(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519","Azure US")
+    check_azure(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=57063","Azure FedRAMP")
+    check_azure(ip_version, "https://www.microsoft.com/download/confirmation.aspx?id=57064","Azure Germany")
     # NOT SUPPORTED: Azure China https://www.microsoft.com/en-us/download/details.aspx?id=42064
     # This is still in the old XML format
-    check_google("https://www.gstatic.com/ipranges/goog.json", "GCP Services")
-    check_google("https://www.gstatic.com/ipranges/cloud.json", "GCP Customers")
-    check_oracle("https://docs.oracle.com/iaas/tools/public_ip_ranges.json", "OCI")
+    check_google(ip_version, "https://www.gstatic.com/ipranges/goog.json", "GCP Services")
+    check_google(ip_version, "https://www.gstatic.com/ipranges/cloud.json", "GCP Customers")
+    check_oracle(ip_version, "https://docs.oracle.com/iaas/tools/public_ip_ranges.json", "OCI")
 
 if __name__ == "__main__":
     main()
