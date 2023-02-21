@@ -2,7 +2,6 @@
 import ipaddress
 import argparse
 import re
-import json
 import requests
 import requests_cache
 requests_cache.install_cache(cache_name='iaas_cache', expire_after=86400)
@@ -15,9 +14,9 @@ from bs4 import BeautifulSoup
 # get the address in dotted quad notation
 parser = argparse.ArgumentParser(
     prog = 'ip_is_iaas',
-    description = 'Checks if an IPv4 address belongs to an IaaS provider',
+    description = 'Checks if an IP address belongs to an IaaS provider',
     epilog = 'I have no idea what I\'m doing')
-parser.add_argument('ip_input')
+parser.add_argument('ip_input', help='a single IPv4 or IPv6 address')
 args = parser.parse_args()
 
 def check_amazon(ip_version, aws_url,aws_name):
@@ -54,7 +53,6 @@ def check_oracle(ip_version, oci_url,oci_name):
 def check_azure(ip_version, azure_url,azure_region):
     # the download page needs to be parsed with BS to get the real url, which changes regularly
     azure_ips = []
-    page = requests.get(azure_url)
     azure_page = requests.get(azure_url)
     # parse HTML to get the real link
     soup = BeautifulSoup(azure_page.content, "html.parser")
