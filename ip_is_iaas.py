@@ -7,11 +7,7 @@ import requests_cache
 requests_cache.install_cache(cache_name='iaas_cache', expire_after=86400)
 from bs4 import BeautifulSoup
 
-# only supporting ipv4 addresses at this time
-# always goes to the internet instead of caching and comparing versions
-
 # set up some command line options
-# get the address in dotted quad notation
 parser = argparse.ArgumentParser(
     prog = 'ip_is_iaas',
     description = 'Checks if an IP address belongs to an IaaS provider',
