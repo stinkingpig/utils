@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--local', action=argparse.BooleanOptionalAction, help='write output to local files', default=False)
 parser.add_argument('--customer_id', help='Your Observe customer ID. Required if local is False', required=False)
 parser.add_argument('--ingest_token', help='Your Observe data stream token. Required if local is False', required=False)
-parser.add_argument('--observe_host_name', help='Defaults to https://<OBSERVE_CUSTOMER_ID>.collect.observeinc.com', required=False)
+parser.add_argument('--observe_host_name', help='Defaults to collect.observeinc.com', required=False)
 args = parser.parse_args()
 
 def validate_input():
@@ -28,6 +28,8 @@ def validate_input():
             exit()
         if not args.observe_host_name:
             args.observe_host_name = "https://" + args.customer_id + ".collect.observeinc.com"
+        else:
+            args.observe_host_name = "https://" + args.customer_id + "." + args.observe_host_name
 
 def fetch_azure(azure_url,azure_region):
     # the download page needs to be parsed with BS to get the real url, which changes regularly
