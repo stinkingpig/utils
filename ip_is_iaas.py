@@ -6,6 +6,7 @@ import requests
 import requests_cache
 requests_cache.install_cache(cache_name='iaas_cache', expire_after=86400)
 from bs4 import BeautifulSoup
+from tabulate import tabulate
 
 # set up some command line options
 parser = argparse.ArgumentParser(
@@ -14,6 +15,8 @@ parser = argparse.ArgumentParser(
     epilog = 'I have no idea what I\'m doing')
 parser.add_argument('ip_input', help='a single IPv4 or IPv6 address')
 args = parser.parse_args()
+
+ip_hit = 0
 
 def check_amazon(ip_version, aws_url,aws_name):
     if ip_version == 4:
@@ -67,7 +70,7 @@ def check_azure(ip_version, azure_url,azure_region):
     in_net_test(azure_ips,azure_region)
 
 
-# subroutine to validate the input
+# function to validate the input
 # check that it's a dotted quad address, a valid ipv4, or a valid ipv6.
 # exit if it's not something we can use
 def validate_input(ip_input):
@@ -137,17 +140,30 @@ def validate_input(ip_input):
                 print(ip_input, 'is an IPv6 RFC 4380 address')
                 exit()
 
-# subroutine to compare an ip with a subnet range
+# function to print a nice tabular output
+def print_output(output_row):
+    output_headers = ("IP Address", "Network", "IaaS Provider")
+    output_table = tabulate(output_row, headers=output_headers, tablefmt="fancy_grid")
+    print(output_table)
+
+# function to compare an ip with a subnet range
 def in_net_test(iprange,iaas):
     for ip in iprange:
         address=ipaddress.ip_network(args.ip_input)
         network=ipaddress.ip_network(ip)
         if address.subnet_of(network):
-            print(args.ip_input,"is in",str(network),"which belongs to",iaas)
+            global ip_hit
+            ip_hit = 1
+            output_row = [
+                (args.ip_input, str(network), iaas)
+            ]
+            print_output(output_row)
             exit()
 
 def main():
     ip_version = validate_input(args.ip_input)
+    global ip_hit
+    ip_hit = 0
     check_amazon(ip_version, "https://ip-ranges.amazonaws.com/ip-ranges.json", "AWS")
     check_azure(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519","Azure US")
     check_azure(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=57063","Azure FedRAMP")
@@ -157,6 +173,11 @@ def main():
     check_google(ip_version, "https://www.gstatic.com/ipranges/goog.json", "GCP Services")
     check_google(ip_version, "https://www.gstatic.com/ipranges/cloud.json", "GCP Customers")
     check_oracle(ip_version, "https://docs.oracle.com/iaas/tools/public_ip_ranges.json", "OCI")
+    if ip_hit == 0:
+        output_row = [
+            (args.ip_input, "N/A", "None")
+        ]
+        print_output(output_row)
 
 if __name__ == "__main__":
     main()
