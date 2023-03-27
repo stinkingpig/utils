@@ -6,6 +6,7 @@ requests_cache.install_cache(cache_name='azure_ip_list_cache', expire_after=600)
 import urllib.request
 from bs4 import BeautifulSoup
 import boto3
+import xmltodict
 
 # set up some command line options
 parser = argparse.ArgumentParser(
@@ -92,13 +93,50 @@ def fetch_azure(azure_url,azure_region):
             except requests.exceptions.HTTPError as err:
                 print(err)
 
+def fetch_azure_xml(azure_url,azure_region):
+    # the download page needs to be parsed with BS to get the real url, which changes regularly
+    azure_page = requests.get(azure_url)
+    # parse HTML to get the real link
+    soup = BeautifulSoup(azure_page.content, "html.parser")
+    azure_link = soup.find('a', {'data-bi-containername':'download retry'})['href']
+    azure_filename = azure_region.replace(" ", "_") + ".xml"
+    with urllib.request.urlopen(azure_link) as response:
+        azure_data = response.read()
+        if args.local:
+            try:
+                azure_file = open(azure_filename, 'wb')
+            except IOError:
+                print("cannot open",azure_filename,"for writing")
+            azure_file.write(azure_data)
+            azure_file.close
+        elif args.s3:
+            s3_session = boto3.Session(
+                aws_access_key_id = args.aws_access_key,
+                aws_secret_access_key = args.aws_secret_key
+            )
+            s3_connection = s3_session.resource('s3')
+            s3_connection.meta.client.put_object(
+                Body = azure_data,
+                Bucket = args.bucket_name,
+                Key = azure_filename
+            )
+        else:
+            observe_url = args.observe_host_name + "/v1/http"
+            observe_token_header = 'Bearer ' + args.ingest_token
+            observe_headers = {'Authorization': observe_token_header, 'Content-type': 'application/xml'}
+            try:
+                observe_post = requests.post(observe_url, headers=observe_headers, data=azure_data)
+                observe_post.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                print(err)
+
 def main():
     validate_input()
     fetch_azure("https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519","Azure US")
     fetch_azure("https://www.microsoft.com/en-us/download/confirmation.aspx?id=57063","Azure FedRAMP")
     fetch_azure("https://www.microsoft.com/download/confirmation.aspx?id=57064","Azure Germany")
-    # NOT SUPPORTED: Azure China https://www.microsoft.com/en-us/download/details.aspx?id=42064
     # This is still in the old XML format
+    fetch_azure_xml("https://www.microsoft.com/en-us/download/confirmation.aspx?id=42064","Azure China") 
 
 if __name__ == "__main__":
     main()
