@@ -7,6 +7,7 @@ import requests_cache
 requests_cache.install_cache(cache_name='iaas_cache', expire_after=86400)
 from bs4 import BeautifulSoup
 from tabulate import tabulate
+import xmltodict
 
 # set up some command line options
 parser = argparse.ArgumentParser(
@@ -18,7 +19,7 @@ args = parser.parse_args()
 
 ip_hit = 0
 
-def check_amazon(ip_version, aws_url,aws_name):
+def check_amazon(ip_version, aws_url, aws_name):
     if ip_version == 4:
         aws_ip_ranges = requests.get(aws_url).json()['prefixes']
         amazon_ips = [item['ip_prefix'] for item in aws_ip_ranges]
@@ -28,7 +29,7 @@ def check_amazon(ip_version, aws_url,aws_name):
         amazon_ips = [item['ipv6_prefix'] for item in aws_ip_ranges]
         in_net_test(amazon_ips,aws_name)
 
-def check_google(ip_version, goog_url,goog_name):
+def check_google(ip_version, goog_url, goog_name):
     # Note that the Service and Customer files are identical at this time.
     # Only synctoken differs.
     goog_ip_ranges = requests.get(goog_url).json()['prefixes']
@@ -39,7 +40,7 @@ def check_google(ip_version, goog_url,goog_name):
         goog_ips = [item['ipv6Prefix'] for item in goog_ip_ranges if "ipv6Prefix" in item]
         in_net_test(goog_ips,goog_name)
 
-def check_oracle(ip_version, oci_url,oci_name):
+def check_oracle(ip_version, oci_url, oci_name):
     # Note that Oracle supports BYO IPv6 but does not appear to advertise their own IPv6 ranges
     # at this time
     oci_ips = []
@@ -49,7 +50,7 @@ def check_oracle(ip_version, oci_url,oci_name):
             oci_ips.append(oci_region["cidr"])
     in_net_test(oci_ips,oci_name)
 
-def check_azure(ip_version, azure_url,azure_region):
+def check_azure(ip_version, azure_url, azure_region):
     # the download page needs to be parsed with BS to get the real url, which changes regularly
     azure_ips = []
     azure_page = requests.get(azure_url)
@@ -69,6 +70,26 @@ def check_azure(ip_version, azure_url,azure_region):
                     azure_ips.append(azure_range)
     in_net_test(azure_ips,azure_region)
 
+
+def check_azure_xml(ip_version, azure_url, azure_region):
+    # the download page needs to be parsed with BS to get the real url, which changes regularly
+    azure_ips = []
+    azure_page = requests.get(azure_url)
+    # parse HTML to get the real link
+    soup = BeautifulSoup(azure_page.content, "html.parser")
+    azure_link = soup.find('a', {'data-bi-containername':'download retry'})['href']
+    azure_values = requests.get(azure_link)
+    azure_items = xmltodict.parse(azure_values.content)
+    for azure_region_xml in azure_items['AzurePublicIpAddresses']['Region']:
+        for azure_range in azure_region_xml['IpRange']:
+            azure_subnet = azure_range['@Subnet']
+            if ip_version == 4:
+                if re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}", azure_subnet):
+                    azure_ips.append(azure_subnet)
+            else:
+                if not re.match("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}", azure_subnet):
+                    azure_ips.append(azure_subnet)
+    in_net_test(azure_ips,azure_region)
 
 # function to validate the input
 # check that it's a dotted quad address, a valid ipv4, or a valid ipv6.
@@ -165,11 +186,11 @@ def main():
     global ip_hit
     ip_hit = 0
     check_amazon(ip_version, "https://ip-ranges.amazonaws.com/ip-ranges.json", "AWS")
-    check_azure(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519","Azure US")
-    check_azure(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=57063","Azure FedRAMP")
-    check_azure(ip_version, "https://www.microsoft.com/download/confirmation.aspx?id=57064","Azure Germany")
-    # NOT SUPPORTED: Azure China https://www.microsoft.com/en-us/download/details.aspx?id=42064
+    check_azure(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=56519", "Azure US")
+    check_azure(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=57063", "Azure FedRAMP")
+    check_azure(ip_version, "https://www.microsoft.com/download/confirmation.aspx?id=57064", "Azure Germany")
     # This is still in the old XML format
+    check_azure_xml(ip_version, "https://www.microsoft.com/en-us/download/confirmation.aspx?id=42064", "Azure China") 
     check_google(ip_version, "https://www.gstatic.com/ipranges/goog.json", "GCP Services")
     check_google(ip_version, "https://www.gstatic.com/ipranges/cloud.json", "GCP Customers")
     check_oracle(ip_version, "https://docs.oracle.com/iaas/tools/public_ip_ranges.json", "OCI")
