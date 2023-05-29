@@ -2,3 +2,7 @@
 .DS_Store
 iaas_cache.sqlite
 azure_ip_list_cache.sqlite
+Azure_China.xml
+Azure_FedRAMP.json
+Azure_Germany.json
+Azure_US.json
