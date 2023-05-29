@@ -7,4 +7,4 @@ set visualbell
 set incsearch
 set hlsearch
 set autoread
-
+set backspace=indent,eol,start
