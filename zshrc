@@ -6,5 +6,5 @@ alias ll="ls -l"
 alias la="ls -la"
 alias diffy="diff -y --recursive --suppress-common-lines"
 alias findy="find . -name "
-source $HOME/zsh-git-prompt/zshrc.sh
+source /opt/homebrew/opt/zsh-git-prompt/zshrc.sh
 PROMPT='%B%m%~%b$(git_super_status) %# '
