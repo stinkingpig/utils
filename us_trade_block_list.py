@@ -6,6 +6,7 @@ import requests_cache
 requests_cache.install_cache(cache_name='iaas_cache', expire_after=86400)
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+from observe_http_sender import ObserveHttpSender
 
 # You don't want to inadvertently break the law, so you want to know countries your systems touch
 # All restrictions: https://www.ecfr.gov/current/title-15/subtitle-B/chapter-VII/subchapter-C
@@ -16,20 +17,47 @@ from datetime import datetime, timedelta
 # But it still requires interpretation. For instance the "Western Balkans" have sanctions, but are not defined here. Some sources refer to Albania, Croatia, North Macedonia, Montenegro, Bosnia and Herzegovina, Serbia, and Kosovo as the Western Balkans, while others list 7 or 11 or 3 countries depending on when the list was produced and by who.
 
 # set up some command line options
-# get the address in dotted quad notation
 parser = argparse.ArgumentParser(
     prog = 'us_trade_block_list',
     description = 'Checks if OFAC sanctions have changed recently',
     epilog = 'I have no idea what I\'m doing. I am not a lawyer.')
 parser.add_argument('days_back', help='how many days back should the script look for new entries')
+parser.add_argument('--obvs', action=argparse.BooleanOptionalAction, help='write output to an Observe instance', default=False)
+parser.add_argument('--customer_id', help='Your Observe customer ID. Required if obvs is True', required=False)
+parser.add_argument('--ingest_token', help='Your Observe data stream token. Required if obvs is True', required=False)
+parser.add_argument('--observe_host_name', help='Defaults to collect.observeinc.com', required=False)
 args = parser.parse_args()
+
+def validate_input():
+    #if obvs is true, we'll need the other arguments too
+    if args.obvs == True:
+        if args.customer_id == None:
+            print("Sorry, need your Observe customer ID")
+            exit()
+        if args.ingest_token == None:
+            print("Sorry, need your Observe ingest token")
+            exit()
+        if not args.observe_host_name:
+            args.observe_host_name = "https://" + args.customer_id + ".collect.observeinc.com"
+        else:
+            args.observe_host_name = "https://" + args.customer_id + "." + args.observe_host_name
+
+def send_to_obvs(input):
+    from observe_http_sender import ObserveHttpSender 
+    observer = ObserveHttpSender(args.customer_id,args.observe_host_name,args.ingest_token)
+    if observer.check_connectivity == 0:
+        print("Cannot reach " + args.observe_host_name)
+        exit()
+    observer.post_observation(input)
+    observer.flush
+    print("Posted update to " + args.observe_host_name + ". You should review at your earliest convenience")
 
 def check_ofac(date_threshold):
     treasury_url="https://home.treasury.gov/policy-issues/financial-sanctions/sanctions-programs-and-country-information"
     ofac_page = requests.get(treasury_url)
-    # parse HTML to get the real link
+    # parse HTML to get the links
     soup = BeautifulSoup(ofac_page.content, "html.parser")
-    ofac_string = re.compile("\/policy-issues\/financial-sanctions\/recent-actions/\d{8}")
+    ofac_string = re.compile("\/recent-actions/\d{8}")
     counter = 0
     returns = []
     for link in soup.find_all('a', href=ofac_string):
@@ -47,12 +75,15 @@ def check_ofac(date_threshold):
 def set_days_back():
     today = datetime.today()
     date_threshold = today - timedelta(days = int(args.days_back))
+    print("Looking for updates since",date_threshold)
     return(date_threshold)
 
 def parse_ofac(ofac_results):
     if ofac_results[0] == "No new sanctions.":
         print(ofac_results[0])
         exit()
+    if args.obvs == True:
+        send_to_obvs(ofac_results)
     else:
        for link in ofac_results:
             print("You should review",link,"at your earliest convenience")
