@@ -17,7 +17,7 @@ parser.add_argument('--local', action=argparse.BooleanOptionalAction, help='writ
 parser.add_argument('--s3', action=argparse.BooleanOptionalAction, help='write output to an S3 bucket', default=False)
 parser.add_argument('--customer_id', help='Your Observe customer ID. Required if local is False', required=False)
 parser.add_argument('--ingest_token', help='Your Observe data stream token. Required if local is False', required=False)
-parser.add_argument('--observe_host_name', help='Defaults to collect.observeinc.com', required=False)
+parser.add_argument('--observe_host_name', help='Defaults to collect.observeinc.com', required=False, default="collect.observeinc.com")
 parser.add_argument('--bucket_name', help='Your AWS S3 Bucket name. Required if s3 is True', required=False)
 parser.add_argument('--aws_access_key', help='Your AWS Access Key ID. Required if s3 is True', required=False)
 parser.add_argument('--aws_secret_key', help='Your AWS Secret Key. Required if s3 is True', required=False)
