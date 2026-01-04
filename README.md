@@ -5,3 +5,4 @@
 * ip\_is\_iaas.py, which checks if an IPv4 or IPv6 address is in AWS, Azure, GCP, or OCI
 * change\_terminal\_profile.sh, when you ssh to another machine, this will change your Apple Terminal profile to a different one
 * us_trade_block_list.py, which checks if there are new sanctions posted in the last N days
+* check\_renewed\_brompton.py, which pulls the URLs of renewed bikes from Brompton's site
