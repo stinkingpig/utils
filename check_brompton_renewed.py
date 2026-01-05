@@ -6,7 +6,6 @@ import requests_cache
 import logging
 requests_cache.install_cache(cache_name='brompton_cache', expire_after=86400)
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
 import os
 
 # Looking for a deal on a Brompton? This script will regularly check the renewed site
@@ -14,7 +13,7 @@ import os
 # set up some command line options
 parser = argparse.ArgumentParser(
     prog = 'check_brompton_renewed',
-    description = 'Checks if Brompton\'s renewed bike list has changed recently',
+    description = 'Checks if Brompton\'s renewed bike list has changed. Delete cache file to reset.',
     epilog = 'I have no idea what I\'m doing.')
 parser.add_argument('--site', help='Brompton site, defaults to US', required=False, default="US")
 args = parser.parse_args()
@@ -49,13 +48,32 @@ def main():
     logging.basicConfig(format='%(asctime)s %(name)s %(levelname)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S %z')
     logger = logging.getLogger(u"check_brompton_renewed")
     logger.setLevel(logging.INFO)
+    cache_file = "renewed_brompton_cache.txt"
     validate_input()
+    # get the latest from the site
     brompton_results = check_site()   
     if 'status' in brompton_results[0]:
         print(brompton_results[0])
         exit()
+    # make sure there's a cache file
+    if not os.path.exists(cache_file):
+        open(cache_file, 'a').close()
+    # read the old cache
+    with open(cache_file, 'r') as cfiler:
+        cached_list = [line.rstrip('\n') for line in cfiler]
+    new_list = list()
     for link in brompton_results:
-        print("Bike found:",link)
+        logging.info("Bike found:", link)
+        new_list.append(link)
+    #write the new cache
+    with open(cache_file, 'w') as cfilew:
+        for bike in new_list:
+            cfilew.write(bike + '\n')
+    # compare results
+    discovery = set(new_list) ^ set(cached_list)
+    for discovered_bike in discovery:
+        logging.info("New bike found:", discovered_bike)
+        print("New bike found:", discovered_bike)
 
 if __name__ == "__main__":
     main()

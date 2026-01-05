@@ -1,5 +1,7 @@
 
 .DS_Store
+brompton_cache.sqlite
+renewed_brompton_cache.txt
 iaas_cache.sqlite
 azure_ip_list_cache.sqlite
 Azure_China.xml
