@@ -44,6 +44,14 @@ def check_site():
         returns.append({"status":"No new bikes."})
     return(returns)
 
+def notify(title, text):
+    os.system("""
+              osascript -e 'display notification "{}" with title "{}"'
+              """.format(text, title))
+    os.system("""
+              open {}
+              """.format(text))
+
 def main():
     logging.basicConfig(format='%(asctime)s %(name)s %(levelname)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S %z')
     logger = logging.getLogger(u"check_brompton_renewed")
@@ -73,6 +81,7 @@ def main():
     discovery = set(new_list) ^ set(cached_list)
     for discovered_bike in discovery:
         logging.info("New bike found:", discovered_bike)
+        notify("New bike found", discovered_bike)
         print("New bike found:", discovered_bike)
 
 if __name__ == "__main__":
